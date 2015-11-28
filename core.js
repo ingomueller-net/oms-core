@@ -12,7 +12,8 @@ var client = ldap.createClient({
 
 var ldap_top_dn = 'o=aegee, c=eu';
 
-client.bind('cn=admin,' + ldap_top_dn, config.ldap.rootpw, function(err) { //TODO: change to a privileged but non root
+//TODO: change to a privileged but non root
+client.bind('cn=admin,' + ldap_top_dn, config.ldap.rootpw, function(err) {
   client.log.info({err: err}, 'LDAP client binding');
   assert.ifError(err);
 });
@@ -37,7 +38,8 @@ exports.findUser = function(req, res , next) {
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     var searchDN = 'ou=people, ' + ldap_top_dn;
-    var filter = '(&(uid=' + req.params.userId + ')(objectClass=aegeePersonFab))';
+    var filter = '(&(uid=' + req.params.userId +
+                 ')(objectClass=aegeePersonFab))';
 
     searchLDAP(filter, searchDN, res);
 };
@@ -49,31 +51,38 @@ exports.findMemberships = function(req, res , next) {
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     var searchDN = 'uid=' + req.params.userId + ', ou=people, ' + ldap_top_dn;
-    var filter = '(&(objectClass=aegeePersonMembership)!(memberType=Applicant))';
+    var filter = '(&(objectClass=aegeePersonMembership)!' +
+                 '(memberType=Applicant))';
 
     searchLDAP(filter, searchDN, res);
 };
 
 //this finds the applications *to a body*
 //v0.0.8 - remember to bump version numbers
-exports.findApplications = function(req, res , next) { //cannot do "find all applications" method because of API call routes
+//cannot do "find all applications" method because of API call routes
+exports.findApplications = function(req, res , next) {
     req.log.debug({req: req}, 'findApplications request');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     var searchDN = 'ou=people, ' + ldap_top_dn;
-    var filter = '(&(&(objectClass=aegeePersonMembership)(memberType=Applicant))(bodyCode=' + req.params.bodyCode + '))';
+    var filter = '(&(&(objectClass=aegeePersonMembership)' +
+                 '(memberType=Applicant))(bodyCode=' +
+                 req.params.bodyCode + '))';
 
     searchLDAP(filter, searchDN, res);
 };
 
 //this finds the members *of a body*
 //v0.0.8 - remember to bump version numbers
-exports.findMembers = function(req, res , next) { //cannot do "find all applications" method because of API call routes
+//cannot do "find all applications" method because of API call routes
+exports.findMembers = function(req, res , next) {
     req.log.debug({req: req}, 'findMembers request');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     var searchDN = 'ou=bodies, ' + ldap_top_dn;
-    var filter = '(&(&(objectClass=aegeePersonMembership)(memberType=Member))(bodyCode=' + req.params.bodyCode + '))';
+    var filter = '(&(&(objectClass=aegeePersonMembership)' +
+                 '(memberType=Member))(bodyCode=' +
+                 req.params.bodyCode + '))';
 
     searchLDAP(filter, searchDN, res);
 };
@@ -95,12 +104,14 @@ exports.findAntenna = function(req, res , next) {
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     var searchDN = 'ou=bodies, ' + ldap_top_dn;
-    var filter = '(&(bodyCode=' + req.params.bodyCode + ')(objectClass=aegeeBodyFab))';
+    var filter = '(&(bodyCode=' + req.params.bodyCode +
+                 ')(objectClass=aegeeBodyFab))';
 
     searchLDAP(filter, searchDN, res);
 };
 
 //v0.0.1 - remember to bump version numbers
+//TODO: check clashes between existing UIDs
 exports.createUser = function(req, res , next) {
     req.log.debug({req: req}, 'createUser request');
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -111,13 +122,12 @@ exports.createUser = function(req, res , next) {
       sn: req.params.sn,
       givenName: req.params.givenName,
       cn: req.params.cn,
-      uid: req.params.givenName + '.' + req.params.sn, //TODO: check clashes between existing UIDs
+      uid: req.params.givenName + '.' + req.params.sn,
       mail: req.params.mail,
       userPassword: req.params.userPassword,
       birthDate: req.params.birthDate,
       objectclass: 'aegeePersonFab'
     };
-
 
     client.add('uid=' + entry.uid + ',' + baseDN, entry, function(err) {
       log.info({entry: entry, err: err}, 'Adding User');
@@ -142,12 +152,12 @@ exports.createAntenna = function(req, res , next) {
       bodyNameAscii: req.params.bodyNameAscii,
       mail: req.params.mail,
       netcom: req.params.netcom,
-      bodyStatus: 'C',                //if newly created, automatically is Contact
+      bodyStatus: 'C',              //if newly created, automatically is Contact
       objectclass: 'aegeeBodyFab'
     };
 
-
-    client.add('bodyCode=' + entry.bodyCode + ',' + baseDN, entry, function(err) {
+    var filter = 'bodyCode=' + entry.bodyCode + ',' + baseDN;
+    client.add(filter, entry, function(err) {
       log.info({entry: entry, err: err}, 'Adding Antenna');
       assert.ifError(err);
     });
@@ -159,7 +169,8 @@ exports.createAntenna = function(req, res , next) {
 };
 
 //v0.0.1 - remember to bump version numbers
-exports.createApplication = function(req, res , next) { //TODO: extend to multiple memberships?
+//TODO: extend to multiple memberships?
+exports.createApplication = function(req, res , next) {
     req.log.debug({req: req}, 'createApplication request');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
@@ -180,7 +191,8 @@ exports.createApplication = function(req, res , next) { //TODO: extend to multip
       objectclass: 'aegeePersonMembership'
     };
 
-    client.add('bodyCode=' + entry.bodyCode + ',' + baseDN, entry, function(err) {
+    var filter = 'bodyCode=' + entry.bodyCode + ',' + baseDN;
+    client.add(filter, entry, function(err) {
       log.info({entry: entry, err: err}, 'Adding Application');
       assert.ifError(err);
     });
@@ -192,16 +204,20 @@ exports.createApplication = function(req, res , next) { //TODO: extend to multip
 };
 
 //v0.0.1 - remember to bump version numbers
-exports.modifyMembership = function(req, res , next) { //TODO: extend to multiple memberships?
+//TODO: extend to multiple memberships?
+exports.modifyMembership = function(req, res , next) {
     req.log.debug({req: req}, 'modifyMembership request');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    var baseDN = 'bodyCode=' + req.params.bodyCode + ',uid=' + req.params.userId + ', ou=people, ' + ldap_top_dn;
+    var baseDN = 'bodyCode=' + req.params.bodyCode + ',uid=' +
+                 req.params.userId + ', ou=people, ' + ldap_top_dn;
 
     var change = new ldap.Change({
       operation: 'replace',
       modification: {
-        memberType: req.params.memberType //if changed to "suspended", the system won't remember what was before that
+        // if changed to "suspended", the system won't remember what was before
+        // that
+        memberType: req.params.memberType
       }
     });
 
@@ -211,12 +227,14 @@ exports.modifyMembership = function(req, res , next) { //TODO: extend to multipl
     });
 
     var searchDN = 'ou=people, ' + ldap_top_dn;
-    var filter = '(&(uid=' + req.params.userId + ')(objectClass=aegeeMembershipFab))';
+    var filter = '(&(uid=' + req.params.userId +
+                 ')(objectClass=aegeeMembershipFab))';
 
     searchLDAP(filter, searchDN, res);
 
 
-    //TODO: membership should begin from acceptance date, not from application date (maybe)
+    // TODO: membership should begin from acceptance date, not from application
+    // date (maybe)
 
     //TRIGGER: send email to user about application to body confirmed/rejected
 };
@@ -240,7 +258,8 @@ searchLDAP = function(searchFilter, searchDN, res) {
     var results = [];
 
     client.search(searchDN, opts, function(err, ldapres) {
-        log.debug({searchDN: searchDN, searchFilter: searchFilter, err: err}, 'Client search');
+        log.debug({searchDN: searchDN, searchFilter: searchFilter, err: err},
+                  'Client search');
         assert.ifError(err);
 
         ldapres.on('searchEntry', function(entry) {
@@ -248,13 +267,16 @@ searchLDAP = function(searchFilter, searchDN, res) {
           results.push(entry.object);
         });
         ldapres.on('searchReference', function(referral) {
-          log.debug({referral: referral.uris.join()}, 'Client search: searchReference');
+          log.debug({referral: referral.uris.join()},
+                    'Client search: searchReference');
         });
         ldapres.on('error', function(err) {
-          log.error({searchDN: searchDN, searchFilter: searchFilter, err: err}, 'Client search: error');
+          log.error({searchDN: searchDN, searchFilter: searchFilter, err: err},
+                    'Client search: error');
         });
         ldapres.on('end', function(result) {
-          log.debug({result: result.status, results: results}, 'Client search: end');
+          log.debug({result: result.status, results: results},
+                    'Client search: end');
           res.send(200, results);
         });
     });
